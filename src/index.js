@@ -33,8 +33,27 @@ app.post("/api/users", async (req, res) => {
 });
 
 // Récupération des informations d'un utilisateur
+app.get("/api/users/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await prisma.player.findUnique({
+      where: { id: String(id) }, 
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
 // Modification d'un utilisateur
 // Récupération des utilisateurs pour le leaderboard 
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Serveur lancé sur http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));
