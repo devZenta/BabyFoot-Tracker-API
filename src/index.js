@@ -50,10 +50,21 @@ app.get("/api/users/:id", async (req, res) => {
   }
 });
 
-
-
 // Modification d'un utilisateur
+
+
 // Récupération des utilisateurs pour le leaderboard 
+app.get("/api/leaderboard", async (req, res) => {
+  try {
+    const players = await prisma.player.findMany({
+      orderBy: { elo: "desc" }, 
+    });
+
+    res.json(players);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));
