@@ -129,5 +129,70 @@ app.get("/api/teams", async (req, res) => {
   }
 });
 
+// Création d'un match
+app.post("/api/matchs", async (req, res) => {
+  const { team1Id, team2Id, scoreTeam1, scoreTeam2 } = req.body;
+
+  try {
+    const winnerId = scoreTeam1 > scoreTeam2 ? team1Id : team2Id;
+
+    const match = await prisma.match.create({
+      data: {
+        team1Id,
+        team2Id,
+        scoreTeam1,
+        scoreTeam2,
+        winnerId,
+      },
+    });
+
+    // Mise à jour des statistiques pour chaque joueur de chaque équipe
+    const updatePlayerStats = async (teamId, isWinner) => {
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        include: { players: { include: { player: true } } },
+      });
+
+      await Promise.all(
+        team.players.map(async (teamPlayer) => {
+          const player = teamPlayer.player;
+          await prisma.player.update({
+            where: { id: player.id },
+            data: {
+              games: player.games + 1,
+              wins: player.wins + (isWinner ? 1 : 0),
+              losses: player.losses + (isWinner ? 0 : 1),
+              elo: player.elo + (isWinner ? 20 : -20),
+            },
+          });
+        })
+      );
+    };
+
+    await updatePlayerStats(team1Id, winnerId === team1Id);
+    await updatePlayerStats(team2Id, winnerId === team2Id);
+
+    res.json(match);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Récupérer tous les matchs
+app.get("/api/matchs", async (req, res) => {
+  try {
+    const matches = await prisma.match.findMany({
+      include: {
+        team1: true,  
+        team2: true, 
+      },
+    });
+
+    res.json(matches); 
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));
