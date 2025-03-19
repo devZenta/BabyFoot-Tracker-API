@@ -51,7 +51,30 @@ app.get("/api/users/:id", async (req, res) => {
 });
 
 // Modification d'un utilisateur
+app.put("/api/users/:id", async (req, res) => {
+  const { id } = req.params;
+  const { username, elo, games, wins, losses, teams } = req.body;
 
+  try {
+    const user = await prisma.player.update({
+      where: { id: String(id) },
+      data: {
+        username,
+        elo,
+        games,
+        wins,
+        losses,
+        teams: {
+          set: teams ? teams.map((team) => ({ id: team.id })) : [],
+        },
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Récupération des utilisateurs pour le leaderboard 
 app.get("/api/leaderboard", async (req, res) => {
