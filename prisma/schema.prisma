@@ -13,3 +13,117 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Player {
+  id            String          @id @default(cuid())
+  name          String?
+  username      String          @unique
+  email         String          @unique
+  image         String?
+
+  elo       Int     @default(2000) 
+  games     Int     @default(0)    
+  wins      Int     @default(0)    
+  losses    Int     @default(0) 
+
+  teams TeamPlayer[]
+
+  accounts      Account[]
+  sessions      Session[]
+
+  Authenticator Authenticator[]
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id        String  @id @default(cuid())  
+  name      String  @unique
+  createdAt DateTime @default(now())  
+
+  players   TeamPlayer[]  
+
+  matchesAsTeam1 Match[] @relation("team1")
+  matchesAsTeam2 Match[] @relation("team2")
+}
+
+model TeamPlayer {
+  playerId String
+  teamId   String
+
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@id([playerId, teamId]) 
+}
+
+model Match {
+  id         String   @id @default(cuid())  
+  createdAt  DateTime @default(now())  
+  scoreTeam1 Int      
+  scoreTeam2 Int      
+
+  team1Id String
+  team2Id String
+  team1   Team @relation("team1", fields: [team1Id], references: [id])
+  team2   Team @relation("team2", fields: [team2Id], references: [id])
+
+  winnerId String?
+}
+ 
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ 
+  player Player @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([provider, providerAccountId])
+}
+ 
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  player         Player     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+ 
+  @@id([identifier, token])
+}
+ 
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+ 
+  player Player @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([userId, credentialID])
+}
+
+
