@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
+app.get("/api", (req, res) => {
   res.json({ 
     status: "online",
     message: "Babyfoot Tracker API is up and running!",
@@ -20,7 +20,7 @@ app.get("/", (req, res) => {
 });
 
 // Création d'un utilisateur
-app.post("/users", async (req, res) => {
+app.post("/api/users", async (req, res) => {
   const { username, discordId} = req.body;
   try {
     const user = await prisma.player.create({
