@@ -89,5 +89,45 @@ app.get("/api/leaderboard", async (req, res) => {
   }
 });
 
+// Création d'une équipe
+app.post("/api/teams", async (req, res) => {
+  const { name, playerIds } = req.body;
+
+  try {
+    const team = await prisma.team.create({
+      data: {
+        name,
+        players: {
+          create: playerIds.map((playerId) => ({
+            player: { connect: { id: playerId } },
+          })),
+        },
+      },
+      include: {
+        players: { include: { player: true } },
+      },
+    });
+    res.json(team);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Récupérer toutes les équipes
+app.get("/api/teams", async (req, res) => {
+  try {
+    const teams = await prisma.team.findMany({
+      include: { 
+        players: {
+          include: { player: true }  
+        }
+      }
+    });
+    res.json(teams); 
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));
