@@ -26,6 +26,10 @@ app.post("/api/users", async (req, res) => {
     const user = await prisma.player.create({
       data: { username, discordId },
     });
+    await notifyDiscord("user_created", {
+      username: user.username,
+      discordId: user.discordId,
+    });
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -106,6 +110,10 @@ app.post("/api/teams", async (req, res) => {
       include: {
         players: { include: { player: true } },
       },
+    });
+    await notifyDiscord("team_created", {
+      teamName: team.name,
+      players: team.players.map((p) => p.player.username),
     });
     res.json(team);
   } catch (error) {
@@ -193,6 +201,19 @@ app.get("/api/matchs", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Fonction utilitaire pour envoyer une requête HTTP au bot Discord
+async function notifyDiscord(event, data) {
+  try {
+    await fetch(`${process.env.DISCORD_BOT_URL}/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, data }),
+    });
+  } catch (error) {
+    console.error("Error when sending to the Discord bot:", error.message);
+  }
+}
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));

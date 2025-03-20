@@ -20,6 +20,8 @@ model Player {
   email         String          @unique
   image         String?
 
+  discordId     String          @unique
+
   elo       Int     @default(2000) 
   games     Int     @default(0)    
   wins      Int     @default(0)    
