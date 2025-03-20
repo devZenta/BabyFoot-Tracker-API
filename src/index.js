@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
@@ -23,13 +24,16 @@ app.get("/api", (req, res) => {
 app.post("/api/users", async (req, res) => {
   const { username, discordId} = req.body;
   try {
-    const user = await prisma.player.create({
+    const user = await prisma.test.create({
       data: { username, discordId },
     });
-    await notifyDiscord("user_created", {
-      username: user.username,
-      discordId: user.discordId,
-    });
+    if (discordId) {
+      // Appel à l'API du bot pour envoyer un message de bienvenue
+      await axios.post('http://localhost:3001/send-welcome', {
+        discordId,
+        message: 'test',
+      });
+    }
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -110,10 +114,6 @@ app.post("/api/teams", async (req, res) => {
       include: {
         players: { include: { player: true } },
       },
-    });
-    await notifyDiscord("team_created", {
-      teamName: team.name,
-      players: team.players.map((p) => p.player.username),
     });
     res.json(team);
   } catch (error) {
@@ -201,19 +201,6 @@ app.get("/api/matchs", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Fonction utilitaire pour envoyer une requête HTTP au bot Discord
-async function notifyDiscord(event, data) {
-  try {
-    await fetch(`${process.env.DISCORD_BOT_URL}/notify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, data }),
-    });
-  } catch (error) {
-    console.error("Error when sending to the Discord bot:", error.message);
-  }
-}
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));

@@ -128,4 +128,12 @@ model Authenticator {
   @@id([userId, credentialID])
 }
 
+model test {
+  id            String          @id @default(cuid())
+  name          String?
+  username      String          @unique
+  discordId     String          @unique
+}
+
+
 
