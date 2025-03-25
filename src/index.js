@@ -1,13 +1,11 @@
 const express = require('express');
-const axios = require('axios');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
 const verifyApiKey = require('./middleware/auth');
+const prisma = require('./prisma/prismaClient');
 
 dotenv.config();
 const app = express();
-const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
@@ -23,28 +21,44 @@ app.get("/api", (req, res) => {
   });
 });
 
-// Création d'un utilisateur
-app.post("/api/users", async (req, res) => {
-  const { username, discordId} = req.body;
+// Get all players
+app.get("/api/users", async (req, res) => {
   try {
-    const user = await prisma.test.create({
-      data: { username, discordId },
-    });
-    if (discordId) {
-      // Appel à l'API du bot pour envoyer un message de bienvenue
-      await axios.post('http://localhost:3001/send-welcome', {
-        discordId,
-        message: 'mec y\'a un gars dans ma liste d\'amis il fait que jouer a lol son blaze c est degalax jte jure il me fait peur',
-      });
-    }
-    res.json(user);
+    const users = await prisma.user.findMany();
+    res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+// Get a single player (if there's only one player in the database)
+app.get("/api/player", async (req, res) => {
+  try {
+    // Get the first player from the database
+    const player = await prisma.user.findFirst();
+    
+    if (!player) {
+      return res.status(404).json({ error: "No players found" });
+    }
+    
+    res.json(player);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/users', async (req, res) => {
+  try {
+      const users = await prisma.User.findMany(); // Assurez-vous que votre modèle Prisma s'appelle bien "User"
+      res.json(users);
+  } catch (error) {
+    console.error("Erreur Prisma :", error); 
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Récupération des informations d'un utilisateur
-app.get("/api/users/:id", async (req, res) => {
+/*app.get("/api/users/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const user = await prisma.player.findUnique({
@@ -59,151 +73,8 @@ app.get("/api/users/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
+});*/
 
-// Modification d'un utilisateur
-app.put("/api/users/:id", async (req, res) => {
-  const { id } = req.params;
-  const { username, elo, games, wins, losses, teams } = req.body;
-
-  try {
-    const user = await prisma.player.update({
-      where: { id: String(id) },
-      data: {
-        username,
-        elo,
-        games,
-        wins,
-        losses,
-        teams: {
-          set: teams ? teams.map((team) => ({ id: team.id })) : [],
-        },
-      },
-    });
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Récupération des utilisateurs pour le leaderboard 
-app.get("/api/leaderboard", async (req, res) => {
-  try {
-    const players = await prisma.player.findMany({
-      orderBy: { elo: "desc" }, 
-    });
-
-    res.json(players);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Création d'une équipe
-app.post("/api/teams", async (req, res) => {
-  const { name, playerIds } = req.body;
-
-  try {
-    const team = await prisma.team.create({
-      data: {
-        name,
-        players: {
-          create: playerIds.map((playerId) => ({
-            player: { connect: { id: playerId } },
-          })),
-        },
-      },
-      include: {
-        players: { include: { player: true } },
-      },
-    });
-    res.json(team);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Récupérer toutes les équipes
-app.get("/api/teams", async (req, res) => {
-  try {
-    const teams = await prisma.team.findMany({
-      include: { 
-        players: {
-          include: { player: true }  
-        }
-      }
-    });
-    res.json(teams); 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Création d'un match
-app.post("/api/matchs", async (req, res) => {
-  const { team1Id, team2Id, scoreTeam1, scoreTeam2 } = req.body;
-
-  try {
-    const winnerId = scoreTeam1 > scoreTeam2 ? team1Id : team2Id;
-
-    const match = await prisma.match.create({
-      data: {
-        team1Id,
-        team2Id,
-        scoreTeam1,
-        scoreTeam2,
-        winnerId,
-      },
-    });
-
-    // Mise à jour des statistiques pour chaque joueur de chaque équipe
-    const updatePlayerStats = async (teamId, isWinner) => {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
-        include: { players: { include: { player: true } } },
-      });
-
-      await Promise.all(
-        team.players.map(async (teamPlayer) => {
-          const player = teamPlayer.player;
-          await prisma.player.update({
-            where: { id: player.id },
-            data: {
-              games: player.games + 1,
-              wins: player.wins + (isWinner ? 1 : 0),
-              losses: player.losses + (isWinner ? 0 : 1),
-              elo: player.elo + (isWinner ? 20 : -20),
-            },
-          });
-        })
-      );
-    };
-
-    await updatePlayerStats(team1Id, winnerId === team1Id);
-    await updatePlayerStats(team2Id, winnerId === team2Id);
-
-    res.json(match);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Récupérer tous les matchs
-app.get("/api/matchs", async (req, res) => {
-  try {
-    const matches = await prisma.match.findMany({
-      include: {
-        team1: true,  
-        team2: true, 
-      },
-    });
-
-    res.json(matches); 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server launched at http://localhost:${PORT}`));
