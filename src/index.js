@@ -3,6 +3,7 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
+const verifyApiKey = require('./middleware/auth');
 
 dotenv.config();
 const app = express();
@@ -10,6 +11,8 @@ const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
+
+app.use(verifyApiKey);
 
 app.get("/api", (req, res) => {
   res.json({ 
@@ -31,7 +34,7 @@ app.post("/api/users", async (req, res) => {
       // Appel à l'API du bot pour envoyer un message de bienvenue
       await axios.post('http://localhost:3001/send-welcome', {
         discordId,
-        message: 'test',
+        message: 'mec y\'a un gars dans ma liste d\'amis il fait que jouer a lol son blaze c est degalax jte jure il me fait peur',
       });
     }
     res.json(user);
